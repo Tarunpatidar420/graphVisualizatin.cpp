@@ -1,0 +1,209 @@
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <cstdlib>
+using namespace std;
+
+//---------------- Find (Path Compression) ----------------//
+int find(vector<int> &parent, int x)
+{
+    if (parent[x] == x)
+        return x;
+
+    return parent[x] = find(parent, parent[x]);
+}
+
+//---------------- Get Root (Without Path Compression) ----------------//
+int getRoot(vector<int> &parent, int x)
+{
+    while (parent[x] != x)
+        x = parent[x];
+
+    return x;
+}
+
+//---------------- Visualization ----------------//
+void visualizeDSU(vector<int> &parent,
+                  vector<int> &Rank,
+                  vector<int> &Size,
+                  vector<int> &minimum,
+                  vector<int> &maximum,
+                  string fileName)
+{
+    ofstream file(fileName);
+
+    file << "digraph G {\n";
+    file << "rankdir=TB;\n";
+    file << "nodesep=0.6;\n";
+    file << "ranksep=0.8;\n";
+
+    for (int i = 0; i < parent.size(); i++)
+    {
+        int root = getRoot(parent, i);
+
+        if (parent[i] == i)
+        {
+            file << i
+                 << " [shape=circle, style=filled, fillcolor=yellow,"
+                 << " label=\""
+                 << i
+                 << "\\nParent=" << parent[i]
+                 << "\\nRank=" << Rank[root]
+                 << "\\nSize=" << Size[root]
+                 << "\\nMin=" << minimum[root]
+                 << "\\nMax=" << maximum[root]
+                 << "\"];\n";
+        }
+        else
+        {
+            file << i
+                 << " [shape=circle, style=filled, fillcolor=lightblue,"
+                 << " label=\""
+                 << i
+                 << "\\nParent=" << parent[i]
+                 << "\\nRank=" << Rank[root]
+                 << "\\nSize=" << Size[root]
+                 << "\\nMin=" << minimum[root]
+                 << "\\nMax=" << maximum[root]
+                 << "\"];\n";
+        }
+    }
+
+    for (int i = 0; i < parent.size(); i++)
+    {
+        if (parent[i] != i)
+        {
+            file << parent[i]
+                 << " -> "
+                 << i
+                 << " [color=blue, penwidth=2];\n";
+        }
+    }
+
+    file << "}\n";
+    file.close();
+
+    string png = fileName.substr(0, fileName.find('.')) + ".png";
+
+    string cmd = "dot -Tpng " + fileName + " -o " + png;
+    system(cmd.c_str());
+
+    string open = "start " + png;
+    system(open.c_str());
+}
+
+//---------------- Union By Rank ----------------//
+void unionByRank(vector<int> &parent,
+                 vector<int> &Rank,
+                 vector<int> &Size,
+                 vector<int> &minimum,
+                 vector<int> &maximum,
+                 int a,
+                 int b)
+{
+    a = find(parent, a);
+    b = find(parent, b);
+
+    if (a == b)
+        return;
+
+    if (Rank[a] == Rank[b])
+    {
+        parent[b] = a;
+        Rank[a]++;
+
+        Size[a] += Size[b];
+        minimum[a] = min(minimum[a], minimum[b]);
+        maximum[a] = max(maximum[a], maximum[b]);
+
+        return;
+    }
+
+    if (Rank[a] > Rank[b])
+    {
+        parent[b] = a;
+
+        Size[a] += Size[b];
+        minimum[a] = min(minimum[a], minimum[b]);
+        maximum[a] = max(maximum[a], maximum[b]);
+    }
+    else
+    {
+        parent[a] = b;
+
+        Size[b] += Size[a];
+        minimum[b] = min(minimum[a], minimum[b]);
+        maximum[b] = max(maximum[a], maximum[b]);
+    }
+}
+
+//---------------- Main ----------------//
+int main()
+{
+    int n = 8;
+
+    vector<int> parent(n);
+    vector<int> Rank(n, 0);
+    vector<int> Size(n, 1);
+    vector<int> minimum(n);
+    vector<int> maximum(n);
+
+    for (int i = 0; i < n; i++)
+    {
+        parent[i] = i;
+        minimum[i] = i;
+        maximum[i] = i;
+    }
+
+    //---------------- Union Operations ----------------//
+    unionByRank(parent, Rank, Size, minimum, maximum, 1, 0);
+    unionByRank(parent, Rank, Size, minimum, maximum, 2, 3);
+    unionByRank(parent, Rank, Size, minimum, maximum, 2, 1);
+    unionByRank(parent, Rank, Size, minimum, maximum, 5, 4);
+    unionByRank(parent, Rank, Size, minimum, maximum, 4, 2);
+    unionByRank(parent, Rank, Size, minimum, maximum, 6, 7);
+    unionByRank(parent, Rank, Size, minimum, maximum, 7, 2);
+
+    //---------------- Parent Array (Before Path Compression) ----------------//
+    cout << "\nParent Array : ";
+    for (int x : parent)
+        cout << x << " ";
+
+    cout << "\nRank Array   : ";
+    for (int x : Rank)
+        cout << x << " ";
+
+    cout << "\nSize Array   : ";
+    for (int x : Size)
+        cout << x << " ";
+
+    cout << "\n";
+
+    //---------------- Representative Information ----------------//
+    cout << "\nRepresentative Information\n\n";
+
+    for (int i = 0; i < n; i++)
+    {
+        int root = find(parent, i);
+
+        cout << "Node : " << i << endl;
+        cout << "Representative : " << root << endl;
+        cout << "Size           : " << Size[root] << endl;
+        cout << "Minimum        : " << minimum[root] << endl;
+        cout << "Maximum        : " << maximum[root] << endl;
+        cout << "-----------------------------\n";
+    }
+
+    //---------------- Parent Array (After Path Compression) ----------------//
+    cout << "\nParent Array After Path Compression : ";
+    for (int x : parent)
+        cout << x << " ";
+
+    cout << endl;
+
+    //---------------- Visualization ----------------//
+    visualizeDSU(parent, Rank, Size, minimum, maximum, "dsuRank.dot");
+
+    return 0;
+}
